@@ -1,6 +1,7 @@
 import struct
 import numpy as np
 import gzip
+import os
 try:
     from simple_ml_ext import *
 except:
@@ -20,11 +21,11 @@ def add(x, y):
         Sum of x + y
     """
     ### BEGIN YOUR CODE
-    pass
+    return x + y
     ### END YOUR CODE
 
 
-def parse_mnist(image_filename, label_filename):
+def parse_mnist(image_filename=None, label_filename=None):
     """ Read an images and labels file in MNIST format.  See this page:
     http://yann.lecun.com/exdb/mnist/ for a description of the file format.
 
@@ -48,7 +49,29 @@ def parse_mnist(image_filename, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR CODE
-    pass
+    path = os.getcwd()
+    path_images = path + "/hw0/" + image_filename
+    path_labels = path + "/hw0/" + label_filename
+
+    with gzip.open(path_labels, 'rb') as label:
+	    # 使用struct.unpack方法读取前两个数据，>代表高位在前，I代表32位整型。
+        # read(8)表示一次从文件中读取8个字节, 前两个数据分别是magic number和样本个数
+        magic, n = struct.unpack('>II', label.read(8))
+        # 使用np.fromstring读取剩下的数据，read()表示读取所有的数据
+        labels = np.fromstring(label.read(), dtype=np.uint8)
+        
+        
+    with gzip.open(path_images, 'rb') as image:
+        magic, num, rows, cols = struct.unpack('>IIII', image.read(16))
+        images = np.fromstring(image.read(), dtype=np.uint8).reshape(len(labels), 784)
+        # Change data type
+        images = images.astype(np.float32)
+        # normalized
+        range = np.max(images) - np.min(images)
+        images = (images - np.min(images)) / range
+    
+    return (images, labels)
+    
     ### END YOUR CODE
 
 
@@ -68,7 +91,9 @@ def softmax_loss(Z, y):
         Average softmax loss over the sample.
     """
     ### BEGIN YOUR CODE
-    pass
+    def softmax(x):
+        return np.exp(x) / np.sum(np.exp(x), axis=1, keepdims=True)
+    return np.mean(-np.log(softmax(Z)[np.indices(y.shape)[0], y]))
     ### END YOUR CODE
 
 
@@ -91,7 +116,28 @@ def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    sample_num = X.shape[0]
+    iter_num = sample_num // batch
+    for iter in range(iter_num):
+        iter_x = X[iter * batch: (iter+1) * batch, :]
+        iter_y = y[iter * batch: (iter+1) * batch]
+        Z = np.matmul(iter_x, theta)
+        # loss = softmax_loss(Z, iter_y)
+        # Compute Cross Entropy Grad
+        max_val = np.max(Z)
+        cross_entropy_grad = np.exp(Z-max_val) / np.sum(np.exp(Z-max_val), axis=1, keepdims=True)
+        cross_entropy_grad[np.indices(iter_y.shape)[0], iter_y] -= 1
+        """
+        equal to
+        # for idx in range(batch):
+        #     cross_entropy_grad[idx, iter_y[idx]] -= 1
+        """
+        # Assume we reduce mean
+        cross_entropy_grad /= batch
+        # Compute Theta grad, use Matmul
+        theta_grad = np.matmul(np.transpose(iter_x), cross_entropy_grad)
+        # Update Parameter
+        theta -= lr * theta_grad
     ### END YOUR CODE
 
 
@@ -118,7 +164,38 @@ def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    sample_num = X.shape[0]
+    iter_num = sample_num // batch
+    """
+    50, 5 matmul 5, 10 -> 50, 10
+    50, 10 matmul 10, 3 -> 50, 3
+    """
+    for iter in range(iter_num):
+        iter_x = X[iter * batch: (iter+1) * batch, :]
+        iter_y = y[iter * batch: (iter+1) * batch]
+        Z1 = np.matmul(iter_x, W1)
+        relu_mask = Z1 > 0 
+        relu_Z1 = Z1 * relu_mask
+        Z2 = np.matmul(relu_Z1, W2)
+        # loss = softmax_loss(Z, iter_y)
+        # Compute Cross Entropy Grad
+        max_val = np.max(Z2)
+        cross_entropy_grad = np.exp(Z2-max_val) / np.sum(np.exp(Z2-max_val), axis=1, keepdims=True)
+        cross_entropy_grad[np.indices(iter_y.shape)[0], iter_y] -= 1
+        """
+        equal to
+        # for idx in range(batch):
+        #     cross_entropy_grad[idx, iter_y[idx]] -= 1
+        """
+        # Assume we reduce mean
+        cross_entropy_grad /= batch
+        # Compute W1 W2 grad, use Matmul
+        W2_grad = np.matmul(np.transpose(relu_Z1), cross_entropy_grad)
+        relu_grad = np.matmul(cross_entropy_grad, np.transpose(W2)) * relu_mask 
+        W1_grad = np.matmul(np.transpose(iter_x), relu_grad)
+        # Update Parameter
+        W1 -= lr * W1_grad
+        W2 -= lr * W2_grad
     ### END YOUR CODE
 
 
