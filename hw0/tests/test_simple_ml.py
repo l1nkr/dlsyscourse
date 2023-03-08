@@ -4,7 +4,7 @@ import numdifftools as nd
 import os
 
 print(os.getcwd())
-sys.path.append('./hw0/src/')
+sys.path.append('./src/')
 from simple_ml import *
 try:
     from simple_ml_ext import *
@@ -136,3 +136,4 @@ def test_softmax_regression_epoch_cpp():
     np.testing.assert_allclose(np.linalg.norm(theta), 1.0947356, 
                                rtol=1e-5, atol=1e-5)
 
+# test_softmax_regression_epoch_cpp()

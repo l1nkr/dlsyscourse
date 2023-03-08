@@ -1,2 +1,7 @@
 __pycache__/
 .vscode/
+build/
+cmake-build-debug/
+.pytest_cache/
+*.so
+.idea/
